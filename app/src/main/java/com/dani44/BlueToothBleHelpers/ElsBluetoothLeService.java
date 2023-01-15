@@ -1,4 +1,4 @@
-package com.dani44.androidbletest;
+package com.dani44.BlueToothBleHelpers;
 
 import android.annotation.SuppressLint;
 import android.app.Service;
@@ -17,15 +17,15 @@ import android.util.Log;
 
 import androidx.annotation.Nullable;
 
-import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
-import java.util.Random;
+import java.util.Observable;
 import java.util.UUID;
 
 @SuppressLint("MissingPermission")
 public class ElsBluetoothLeService extends Service {
 
     boolean mIsConnected = false ;
+
+    public ElsDataModel elsData = new ElsDataModel() ;
 
     final String BLE_SERVER_NAME = "TEST_ESP32_BLE_100" ;
 
@@ -45,7 +45,7 @@ public class ElsBluetoothLeService extends Service {
     private final IBinder binder = new LocalBinder();
 
     public class LocalBinder extends Binder {
-        ElsBluetoothLeService getService() {
+        public ElsBluetoothLeService getService() {
            return ElsBluetoothLeService.this;
         }
     }
@@ -154,7 +154,14 @@ public class ElsBluetoothLeService extends Service {
            @Override
            public void onCharacteristicChanged(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic) {
                super.onCharacteristicChanged(gatt, characteristic);
-               Log.d(TAG, "Gatt Notify BME:" + characteristic.getStringValue(0));
+
+
+               // Log.d(TAG, "Gatt Notify BME:" + characteristic.getStringValue(0));
+
+               String data = characteristic.getStringValue(0) ;
+
+               elsData.setPosX( Double.parseDouble(data) );
+
 
            }
        });
@@ -181,4 +188,25 @@ public class ElsBluetoothLeService extends Service {
         Log.i(TAG, "onDestroy: killed");
         super.onDestroy();
     }
+
+
+    public class ElsDataModel extends Observable {
+        Double posX = 0.0  ;
+
+        public void setPosX(Double posX) {
+            this.posX = posX;
+            setChanged();
+            notifyObservers(this);
+        }
+
+        public Double getPosX() {
+            return posX;
+        }
+    }
+
+
+
+
+
+
 }

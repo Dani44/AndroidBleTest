@@ -31,7 +31,7 @@
                 android:value="" />
         </activity>
         <service
-            android:name=".ElsBluetoothLeService"
+            android:name="com.dani44.BlueToothBleHelpers.ElsBluetoothLeService"
             android:exported="false"/>
     </application>
 
