@@ -118,7 +118,7 @@ public class MainActivity extends AppCompatActivity {
 
             ElsBluetoothLeService.ElsDataModel data = (ElsBluetoothLeService.ElsDataModel) o ;
 
-            txtViewPosZ.setText( data.getPosX().toString());
+            txtViewPosZ.setText( data.getElsDataJson() );
             // Log.i( TAG, "Obserbver triggered") ;
 
         }

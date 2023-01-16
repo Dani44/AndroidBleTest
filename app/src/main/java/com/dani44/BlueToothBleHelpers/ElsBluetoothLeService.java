@@ -16,9 +16,7 @@ import android.os.IBinder;
 import android.util.Log;
 
 import androidx.annotation.Nullable;
-
 import java.util.Observable;
-import java.util.UUID;
 
 @SuppressLint("MissingPermission")
 public class ElsBluetoothLeService extends Service {
@@ -27,11 +25,6 @@ public class ElsBluetoothLeService extends Service {
 
     public ElsDataModel elsData = new ElsDataModel() ;
 
-    final String BLE_SERVER_NAME = "TEST_ESP32_BLE_100" ;
-
-    final String SERVICE_UUID = "91bad492-b950-4226-aa2b-4ede9fa42f59" ;
-    final String BME_CHARACTERISTIC_UUID = "cba1d466-344c-4be3-ab3f-189f80dd7518" ;
-    final String GCODE_CHARACTERISTIC_UUID = "beb5483e-36e1-4688-b7f5-ea07361b26a8" ;
 
 
 
@@ -41,6 +34,7 @@ public class ElsBluetoothLeService extends Service {
     BluetoothDevice bluetoothDevice ;
     BluetoothGatt bluetoothGatt ;
 
+    BluetoothGattService els_service = null ;
 
     private final IBinder binder = new LocalBinder();
 
@@ -52,10 +46,10 @@ public class ElsBluetoothLeService extends Service {
 
     public void executeGCode( String command) {
 
-        BluetoothGattService service = bluetoothGatt.getService(UUID.fromString(SERVICE_UUID)) ;
+        // BluetoothGattService service = bluetoothGatt.getService(ESP32ElsServiceDescriptor.SERVICE_UUID) ;
         // BluetoothGattService service = bluetoothGatt.getServices().get(2);
-        if (service != null) {
-            BluetoothGattCharacteristic character = service.getCharacteristic(UUID.fromString(GCODE_CHARACTERISTIC_UUID)) ;
+        if ( els_service != null) {
+            BluetoothGattCharacteristic character = els_service.getCharacteristic(ESP32ElsServiceDescriptor.CHARACTER_GCODE_COMMAND_UUID) ;
             if( character != null){
                 character.setValue(command) ;
                 bluetoothGatt.writeCharacteristic(character);
@@ -83,12 +77,11 @@ public class ElsBluetoothLeService extends Service {
 
         if (blueToothAdapter == null || !blueToothAdapter.isEnabled()) {
             Intent enableBtIntent = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
-            // startActivityForResult(enableBtIntent, REQUEST_ENABLE_BT);
         } else {
             bluetoothDevice = null ;
 
             for( BluetoothDevice device : blueToothAdapter.getBondedDevices()){
-                if( device.getName().startsWith("TEST_ESP32_BLE")){
+                if( device.getName().equals(ESP32ElsServiceDescriptor.BT_DEVICE_NAME)){
                     bluetoothDevice = device ;
                     break ;
                 }
@@ -125,6 +118,7 @@ public class ElsBluetoothLeService extends Service {
                     case BluetoothProfile.STATE_DISCONNECTED:{
                         Log.i( TAG, "BluetoothGatt has disconnected."   ) ;
                         mIsConnected = false ;
+                        els_service = null ;
                         break;
                     }
                 }
@@ -137,16 +131,17 @@ public class ElsBluetoothLeService extends Service {
                Log.i( TAG, "onServicesDiscovered" ) ;
                for(BluetoothGattService bleService : gatt.getServices()){
                    Log.i( TAG, "--> Service:" + bleService.getUuid() ) ;
-
                }
 
-               BluetoothGattService service = bluetoothGatt.getService(UUID.fromString(SERVICE_UUID)) ;
-               if (service != null) {
-                   BluetoothGattCharacteristic character_bme = service.getCharacteristic(UUID.fromString(BME_CHARACTERISTIC_UUID)) ;
-                   if( character_bme != null){
-                       gatt.setCharacteristicNotification(character_bme,true ) ;
+               els_service = bluetoothGatt.getService(ESP32ElsServiceDescriptor.SERVICE_UUID) ;
+               if (els_service != null) {
+
+                   BluetoothGattCharacteristic character_notifier = els_service.getCharacteristic(ESP32ElsServiceDescriptor.CHARACTER_NOTIFIER_UUID) ;
+                   if( character_notifier != null){
+                       gatt.setCharacteristicNotification(character_notifier,true ) ;
                        Log.i(TAG, "Gatt Notify enabled done");
                    }
+
                }
 
            }
@@ -154,13 +149,14 @@ public class ElsBluetoothLeService extends Service {
            @Override
            public void onCharacteristicChanged(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic) {
                super.onCharacteristicChanged(gatt, characteristic);
-
-
-               // Log.d(TAG, "Gatt Notify BME:" + characteristic.getStringValue(0));
-
-               String data = characteristic.getStringValue(0) ;
-
-               elsData.setPosX( Double.parseDouble(data) );
+               String data = "NotFound" ;
+               BluetoothGattCharacteristic character_jsondata = els_service.getCharacteristic(ESP32ElsServiceDescriptor.CHARACTER_ELSDATA_UUID) ;
+               if( character_jsondata != null){
+                   bluetoothGatt.readCharacteristic(character_jsondata) ;
+                   data = character_jsondata.getStringValue(0) ;
+                   Log.i(TAG, "Gatt readCharacteristic done:" + data);
+               }
+              elsData.setElsDataJson( data );
 
 
            }
@@ -191,17 +187,19 @@ public class ElsBluetoothLeService extends Service {
 
 
     public class ElsDataModel extends Observable {
-        Double posX = 0.0  ;
+        String elsDataJson  = ""  ;
 
-        public void setPosX(Double posX) {
-            this.posX = posX;
+
+        public String getElsDataJson() {
+            return elsDataJson;
+        }
+
+        public void setElsDataJson(String elsDataJson) {
+            this.elsDataJson = elsDataJson;
             setChanged();
             notifyObservers(this);
         }
 
-        public Double getPosX() {
-            return posX;
-        }
     }
 
 
