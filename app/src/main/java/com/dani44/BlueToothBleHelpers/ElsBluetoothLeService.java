@@ -101,9 +101,13 @@ public class ElsBluetoothLeService extends Service {
         if ( els_service != null) {
             BluetoothGattCharacteristic character = els_service.getCharacteristic(ESP32ElsServiceDescriptor.CHARACTER_GCODE_COMMAND_UUID) ;
             if( character != null){
+
+                int counter=1 ;
                 character.setValue(command) ;
-                bluetoothGatt.writeCharacteristic(character);
-                Log.i(TAG, "Gatt writeCharacteristic done");
+                while( (! bluetoothGatt.writeCharacteristic(character)  ) && ( counter++ < 3000000 ) ){}
+                Log.i(TAG, "Gatt writeCharacteristic done after " + counter + " trials") ;
+
+
             }
         }
 
@@ -189,6 +193,7 @@ public class ElsBluetoothLeService extends Service {
                        Log.i(TAG, "Gatt Notify enabled done");
                    }
 
+                   setNotification(true);
                }
 
            }
@@ -196,12 +201,42 @@ public class ElsBluetoothLeService extends Service {
 
            @Override
            public void onCharacteristicRead( BluetoothGatt gatt, BluetoothGattCharacteristic characteristic, int status) {
+               super.onCharacteristicRead(gatt,characteristic, status);
                if( characteristic.getUuid().equals( ESP32ElsServiceDescriptor.CHARACTER_ELSDATA_UUID) ){
 
                    Log.i(TAG, "Gatt onCharacteristicRead()");
                    mElsData = characteristic.getStringValue(0) ;
                    broadcastUpdate( ACTION_GATT_DATA_CCHANGED ) ;
                }
+           }
+
+           @Override
+           public void onCharacteristicWrite(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic, int status) {
+               super.onCharacteristicWrite(gatt, characteristic, status);
+               if( characteristic.getUuid().equals( ESP32ElsServiceDescriptor.CHARACTER_GCODE_COMMAND_UUID) ){
+                   switch( status ){
+                       case BluetoothGatt.GATT_SUCCESS:{
+                           Log.i(TAG, "OK Wrote to GCode characteristic $uuid | value: ${value.toHexString()}") ;
+                           break ;
+                       }
+                       case BluetoothGatt.GATT_INVALID_ATTRIBUTE_LENGTH:{
+                           Log.e(TAG, "NOK Wrote to GCode characteristic GATT_INVALID_ATTRIBUTE_LENGTH") ;
+                           break ;
+                       }
+                       case BluetoothGatt.GATT_WRITE_NOT_PERMITTED:{
+                           Log.e(TAG, "NOK Wrote to GCode characteristic GATT_WRITE_NOT_PERMITTED") ;
+                           break ;
+                       }
+
+                   }
+
+
+
+
+               }
+
+
+
            }
 
            @Override
