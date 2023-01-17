@@ -7,6 +7,7 @@ import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothGatt;
 import android.bluetooth.BluetoothGattCallback;
 import android.bluetooth.BluetoothGattCharacteristic;
+import android.bluetooth.BluetoothGattDescriptor;
 import android.bluetooth.BluetoothGattService;
 import android.bluetooth.BluetoothManager;
 import android.bluetooth.BluetoothProfile;
@@ -17,32 +18,72 @@ import android.util.Log;
 
 import androidx.annotation.Nullable;
 import java.util.Observable;
+import java.util.UUID;
 
 @SuppressLint("MissingPermission")
 public class ElsBluetoothLeService extends Service {
 
+    public final static String ACTION_GATT_DATA_CCHANGED  = "com.dani44.BlueToothBleHelpers.ElsBluetoothLeService.ACTION_GATT_DATA_CCHANGED";
+    public final static String ACTION_GATT_CONNECTED = "com.dani44.BlueToothBleHelpers.ElsBluetoothLeService.ACTION_GATT_CONNECTED";
+    public final static String ACTION_GATT_DISCONNECTED = "com.dani44.BlueToothBleHelpers.ElsBluetoothLeService.ACTION_GATT_DISCONNECTED";
+
     boolean mIsConnected = false ;
-
-    public ElsDataModel elsData = new ElsDataModel() ;
-
-
-
-
     final String TAG = "ElsBluetoothLeService" ;
     BluetoothManager bluetoothManager ;
     BluetoothAdapter blueToothAdapter ;
     BluetoothDevice bluetoothDevice ;
     BluetoothGatt bluetoothGatt ;
-
     BluetoothGattService els_service = null ;
 
-    private final IBinder binder = new LocalBinder();
-
+    // Quelle: 1
+    // https://developer.android.com/guide/topics/connectivity/bluetooth/connect-gatt-server
+    // --------------------------------------------------------------------------------------
+    private final Binder binder = new LocalBinder();
+    @Nullable
+    @Override
+    public IBinder onBind(Intent intent) {
+        return binder;
+    }
     public class LocalBinder extends Binder {
         public ElsBluetoothLeService getService() {
-           return ElsBluetoothLeService.this;
+            return ElsBluetoothLeService.this;
         }
     }
+    // End Quelle: 1
+
+
+    private void broadcastUpdate(final String action) {
+        final Intent intent = new Intent(action);
+        sendBroadcast(intent);
+    }
+
+
+    public void setNotification(boolean enabled) {
+
+        if (els_service == null) {
+            Log.w(TAG, "Service not here");
+            return;
+        }
+
+        BluetoothGattCharacteristic characteristic =  els_service.getCharacteristic(ESP32ElsServiceDescriptor.CHARACTER_NOTIFIER_UUID) ;
+        BluetoothGattDescriptor descriptor = characteristic.getDescriptors().get(0);
+        descriptor.setValue(BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE);
+        bluetoothGatt.writeDescriptor(descriptor);
+
+    }
+
+
+    public String getElsData(){
+        String data = "NoData" ;
+        BluetoothGattCharacteristic character_jsondata = els_service.getCharacteristic(ESP32ElsServiceDescriptor.CHARACTER_ELSDATA_UUID) ;
+        if( character_jsondata != null){
+            bluetoothGatt.readCharacteristic(character_jsondata) ;
+            data = character_jsondata.getStringValue(0) ;
+            Log.i(TAG, "Gatt readCharacteristic done:" + data);
+        }
+        return data ;
+    }
+
 
     public void executeGCode( String command) {
 
@@ -60,11 +101,6 @@ public class ElsBluetoothLeService extends Service {
     }
 
 
-    @Nullable
-    @Override
-    public IBinder onBind(Intent intent) {
-        return binder;
-    }
 
     @Override
     public void onCreate() {
@@ -111,12 +147,14 @@ public class ElsBluetoothLeService extends Service {
                 switch( newState ){
                     case BluetoothProfile.STATE_CONNECTED:{
                         mIsConnected = true ;
-                        Log.i( TAG, "BluetoothGatt has connected: Start scann Services .... "   ) ;
+                        broadcastUpdate( ACTION_GATT_CONNECTED ) ;
+                        Log.d( TAG, "BluetoothGatt has connected: Start scann Services .... "   ) ;
                         bluetoothGatt.discoverServices();
                         break ;
                     }
                     case BluetoothProfile.STATE_DISCONNECTED:{
-                        Log.i( TAG, "BluetoothGatt has disconnected."   ) ;
+                        broadcastUpdate( ACTION_GATT_DISCONNECTED ) ;
+                        Log.d( TAG, "BluetoothGatt has disconnected."   ) ;
                         mIsConnected = false ;
                         els_service = null ;
                         break;
@@ -149,14 +187,25 @@ public class ElsBluetoothLeService extends Service {
            @Override
            public void onCharacteristicChanged(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic) {
                super.onCharacteristicChanged(gatt, characteristic);
+
+
+               broadcastUpdate( ACTION_GATT_DATA_CCHANGED ) ;
+
+
                String data = "NotFound" ;
+
+
+
+              /*
                BluetoothGattCharacteristic character_jsondata = els_service.getCharacteristic(ESP32ElsServiceDescriptor.CHARACTER_ELSDATA_UUID) ;
                if( character_jsondata != null){
                    bluetoothGatt.readCharacteristic(character_jsondata) ;
                    data = character_jsondata.getStringValue(0) ;
                    Log.i(TAG, "Gatt readCharacteristic done:" + data);
                }
-              elsData.setElsDataJson( data );
+               */
+               data = characteristic.getStringValue(0) ;
+              // elsData.setElsDataJson( data );
 
 
            }
@@ -186,21 +235,6 @@ public class ElsBluetoothLeService extends Service {
     }
 
 
-    public class ElsDataModel extends Observable {
-        String elsDataJson  = ""  ;
-
-
-        public String getElsDataJson() {
-            return elsDataJson;
-        }
-
-        public void setElsDataJson(String elsDataJson) {
-            this.elsDataJson = elsDataJson;
-            setChanged();
-            notifyObservers(this);
-        }
-
-    }
 
 
 
