@@ -1,6 +1,5 @@
 package com.dani44.androidbletest;
 
-import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import android.annotation.SuppressLint;
 import android.content.BroadcastReceiver;
@@ -11,16 +10,11 @@ import android.content.IntentFilter;
 import android.content.ServiceConnection;
 import android.os.Bundle;
 import android.os.IBinder;
-import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 import android.widget.TextView;
 
-import com.dani44.BlueToothBleHelpers.ESP32ElsServiceDescriptor;
 import com.dani44.BlueToothBleHelpers.ElsBluetoothLeService;
-
-import java.util.Observable;
-import java.util.Observer;
 
 
 @SuppressLint("MissingPermission")
@@ -115,7 +109,7 @@ public class MainActivity extends AppCompatActivity {
         btn_recieve.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
                 if(mConnected){
-                    txtViewPosZ.setText( mElsBluetoothLeService.getElsData());
+                    mElsBluetoothLeService.requestElsDataFromDevice();
                 }
             }
         });
@@ -127,6 +121,7 @@ public class MainActivity extends AppCompatActivity {
 
     @Override
     protected void onStart() {
+
         super.onStart();
     }
 
@@ -145,6 +140,7 @@ public class MainActivity extends AppCompatActivity {
     @Override
     public void onServiceConnected(ComponentName className, IBinder service) {
         mElsBluetoothLeService = ((ElsBluetoothLeService.LocalBinder) service).getService();
+
         if (mElsBluetoothLeService != null) {
             mBound = true;
         }

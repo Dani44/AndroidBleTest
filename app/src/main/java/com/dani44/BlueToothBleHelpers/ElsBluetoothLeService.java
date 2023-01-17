@@ -17,8 +17,8 @@ import android.os.IBinder;
 import android.util.Log;
 
 import androidx.annotation.Nullable;
-import java.util.Observable;
-import java.util.UUID;
+
+import java.util.concurrent.ConcurrentLinkedQueue;
 
 @SuppressLint("MissingPermission")
 public class ElsBluetoothLeService extends Service {
@@ -34,6 +34,9 @@ public class ElsBluetoothLeService extends Service {
     BluetoothDevice bluetoothDevice ;
     BluetoothGatt bluetoothGatt ;
     BluetoothGattService els_service = null ;
+
+    String mElsData = "NoData" ;
+
 
     // Quelle: 1
     // https://developer.android.com/guide/topics/connectivity/bluetooth/connect-gatt-server
@@ -72,20 +75,26 @@ public class ElsBluetoothLeService extends Service {
 
     }
 
-
-    public String getElsData(){
-        String data = "NoData" ;
+    public void requestElsDataFromDevice(){
         BluetoothGattCharacteristic character_jsondata = els_service.getCharacteristic(ESP32ElsServiceDescriptor.CHARACTER_ELSDATA_UUID) ;
         if( character_jsondata != null){
             bluetoothGatt.readCharacteristic(character_jsondata) ;
-            data = character_jsondata.getStringValue(0) ;
-            Log.i(TAG, "Gatt readCharacteristic done:" + data);
+            Log.i(TAG, "Gatt readCharacteristic readCharacteristic CHARACTER_ELSDATA_UUID done:");
         }
-        return data ;
+
+    }
+
+    public String getElsData(){
+        return mElsData ;
     }
 
 
     public void executeGCode( String command) {
+
+
+        // !! ConcurrentLinkedQueue
+        // https://stackoverflow.com/questions/70545166/ble-writing-to-a-characteristic-android-studio
+
 
         // BluetoothGattService service = bluetoothGatt.getService(ESP32ElsServiceDescriptor.SERVICE_UUID) ;
         // BluetoothGattService service = bluetoothGatt.getServices().get(2);
@@ -184,30 +193,21 @@ public class ElsBluetoothLeService extends Service {
 
            }
 
+
+           @Override
+           public void onCharacteristicRead( BluetoothGatt gatt, BluetoothGattCharacteristic characteristic, int status) {
+               if( characteristic.getUuid().equals( ESP32ElsServiceDescriptor.CHARACTER_ELSDATA_UUID) ){
+
+                   Log.i(TAG, "Gatt onCharacteristicRead()");
+                   mElsData = characteristic.getStringValue(0) ;
+                   broadcastUpdate( ACTION_GATT_DATA_CCHANGED ) ;
+               }
+           }
+
            @Override
            public void onCharacteristicChanged(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic) {
                super.onCharacteristicChanged(gatt, characteristic);
-
-
-               broadcastUpdate( ACTION_GATT_DATA_CCHANGED ) ;
-
-
-               String data = "NotFound" ;
-
-
-
-              /*
-               BluetoothGattCharacteristic character_jsondata = els_service.getCharacteristic(ESP32ElsServiceDescriptor.CHARACTER_ELSDATA_UUID) ;
-               if( character_jsondata != null){
-                   bluetoothGatt.readCharacteristic(character_jsondata) ;
-                   data = character_jsondata.getStringValue(0) ;
-                   Log.i(TAG, "Gatt readCharacteristic done:" + data);
-               }
-               */
-               data = characteristic.getStringValue(0) ;
-              // elsData.setElsDataJson( data );
-
-
+               requestElsDataFromDevice();
            }
        });
 
