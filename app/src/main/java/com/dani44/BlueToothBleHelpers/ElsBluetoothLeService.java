@@ -37,7 +37,6 @@ public class ElsBluetoothLeService extends Service {
 
     String mElsData = "NoData" ;
 
-
     // Quelle: 1
     // https://developer.android.com/guide/topics/connectivity/bluetooth/connect-gatt-server
     // --------------------------------------------------------------------------------------
