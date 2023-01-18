@@ -48,7 +48,7 @@ public class MainActivity extends AppCompatActivity {
                 mConnected = false;
                 txtViewConnectStatus.setText("OffLine");
             } else if (ElsBluetoothLeService.ACTION_GATT_DATA_CCHANGED.equals(action)) {
-                txtViewPosZ.setText( mElsBluetoothLeService.getElsData());
+                txtViewPosZ.setText( mElsBluetoothLeService.getElsMessage().toString() ) ;
             }
         }
     };

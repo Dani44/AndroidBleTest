@@ -40,4 +40,13 @@ public class ElsMessage {
         }
     }
 
+    @Override
+    public String toString() {
+        return "{" +
+                "\"state\":" + state +
+                ", \"error\":" + error +
+                ", \"rpm\":" + rpm +
+                ", \"z\"=" + String.format("%.3f",posZ) +
+                '}';
+    }
 }
