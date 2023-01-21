@@ -100,7 +100,7 @@ public class MainActivity extends AppCompatActivity {
         btn_send.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
                 if(mConnected) {
-                    mElsBluetoothLeService.executeGCode("G01 X111.342 F404");
+                    mElsBluetoothLeService.executeGCode("G01 Z-100 F404");
                 }
             }
         });
